@@ -810,8 +810,6 @@ vendor/lib/libwpa_drv_oem.so
 -vendor/bin/hw/rild
 -vendor/bin/hw/vendor.samsung.hardware.radio.configsvc@1.0-service
 vendor/bin/irsc_util
-vendor/bin/netmgrd
-vendor/etc/data/netmgr_config.xml
 -vendor/etc/init/init.vendor.rilchip.rc
 -vendor/etc/init/init.vendor.rilcommon.rc
 -vendor/etc/init/vendor.samsung.hardware.radio.configsvc@1.0-service.rc
@@ -819,11 +817,6 @@ vendor/etc/sec_config
 vendor/etc/sec_config_oem
 lib/libqmi_cci_system.so
 lib/libsecril-client.so
-vendor/lib/libnetmgr.so
-vendor/lib/libnetmgr_common.so
-vendor/lib/libnetmgr_nr_fusion.so
-vendor/lib/libnetmgr_rmnet_ext.so
-vendor/lib/libnlnetmgr.so
 vendor/lib/libqmi.so
 vendor/lib/libqmi_cci.so
 vendor/lib/libqmi_client_helper.so
