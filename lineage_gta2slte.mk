@@ -20,25 +20,25 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/product_launched_with_n_mr1.mk)
 
 # Inherit some common Lineage stuff
-$(call inherit-product, vendor/lineage/config/common_full_tablet_wifionly.mk)
+$(call inherit-product, vendor/lineage/config/common_full_phone.mk)
 
-# Inherit from gta2swifi device
-$(call inherit-product, device/samsung/gta2swifi/device.mk)
+# Inherit from gta2slte device
+$(call inherit-product, device/samsung/gta2slte/device.mk)
 
 # Boot animation
 TARGET_SCREEN_HEIGHT := 1200
 TARGET_SCREEN_WIDTH := 800
 
 PRODUCT_BRAND := samsung
-PRODUCT_DEVICE := gta2swifi
+PRODUCT_DEVICE := gta2slte
 PRODUCT_MANUFACTURER := samsung
-PRODUCT_NAME := lineage_gta2swifi
-PRODUCT_MODEL := SM-T380
+PRODUCT_NAME := lineage_gta2slte
+PRODUCT_MODEL := SM-T385
 
 PRODUCT_GMS_CLIENTID_BASE := android-samsung
 TARGET_VENDOR := samsung
-TARGET_VENDOR_PRODUCT_NAME := gta2swifi
+TARGET_VENDOR_PRODUCT_NAME := gta2slte
 PRODUCT_BUILD_PROP_OVERRIDES += \
-    PRIVATE_BUILD_DESC="gta2swifidx-user 9 PPR1.180610.011 T380DXS4CUD3 release-keys"
+    PRIVATE_BUILD_DESC="gta2sltedx-user 9 PPR1.180610.011 T385DXS4CUD3 release-keys"
 
-BUILD_FINGERPRINT := "samsung/gta2swifidx/gta2swifi:9/PPR1.180610.011/T380DXS4CUD3:user/release-keys"
+BUILD_FINGERPRINT := "samsung/gta2sltedx/gta2slte:9/PPR1.180610.011/T385DXS4CUD3:user/release-keys"
