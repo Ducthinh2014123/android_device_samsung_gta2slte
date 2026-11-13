@@ -8,7 +8,7 @@
 
 set -e
 
-DEVICE=gta2swifi
+DEVICE=gta2slte
 VENDOR=samsung
 
 # Load extract_utils and do some sanity checks
