@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-TARGET_OTA_ASSERT_DEVICE := gta2swifi
-DEVICE_PATH := device/samsung/gta2swifi
+TARGET_OTA_ASSERT_DEVICE := gta2slte
+DEVICE_PATH := device/samsung/gta2slte
 
 BUILD_BROKEN_DUP_RULES := true
 BUILD_BROKEN_USES_BUILD_COPY_HEADERS := true
