@@ -69,25 +69,18 @@ ro.vendor.extension_library=libqti-perfd-client.so
 persist.vendor.qcomsysd.enabled=1
 
 # Radio
+persist.radio.multisim.config=ss
+persist.vendor.data.netmgrd.qos.enable=true
 persist.vendor.radio.apm_sim_not_pwdn=1
-persist.vendor.radio.atfwd.start=false
+persist.vendor.radio.atfwd.start=true
 persist.vendor.radio.custom_ecc=1
 persist.vendor.radio.rat_on=combine
 persist.vendor.radio.sib16_support=1
+ro.telephony.default_network=9
+ro.vendor.multisim.simslotcount=1
+ro.vendor.use_data_netmgrd=true
+telephony.lteOnCdmaDevice=0
+vendor.sec.rild.libpath=/vendor/lib/libsec-ril.so
 
 # Shutdown
 sys.vendor.shutdown.waittime=500
-
-# Radio / RIL
-vendor.sec.rild.libpath=/vendor/lib/libsec-ril.so
-ro.vendor.multisim.simslotcount=1
-persist.radio.multisim.config=ss
-ro.telephony.default_network=9
-telephony.lteOnCdmaDevice=0
-persist.vendor.radio.atfwd.start=true
-persist.vendor.radio.apm_sim_not_pwdn=1
-persist.vendor.radio.custom_ecc=1
-persist.vendor.radio.sib16_support=1
-persist.vendor.radio.rat_on=combine
-ro.vendor.use_data_netmgrd=true
-persist.vendor.data.netmgrd.qos.enable=true
