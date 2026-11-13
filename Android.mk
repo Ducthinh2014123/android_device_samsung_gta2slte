@@ -16,7 +16,7 @@
 
 LOCAL_PATH := $(call my-dir)
 
-ifneq ($(filter gta2swifi,$(TARGET_DEVICE)),)
+ifneq ($(filter gta2slte,$(TARGET_DEVICE)),)
 include $(call all-makefiles-under,$(LOCAL_PATH))
 
 DSP_SYMLINK := $(TARGET_OUT_VENDOR)/lib/dsp
