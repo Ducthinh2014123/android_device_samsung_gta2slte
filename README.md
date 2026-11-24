@@ -1,4 +1,4 @@
-# Device tree for Samsung Galaxy Tab A 8.0" (2017) (Wi-Fi only)
+# Device tree for Samsung Galaxy Tab A 8.0" (2017)
 
 Feature | Specs
 -------:|:---------
@@ -14,7 +14,3 @@ Display | 1280 x 800, 8.0" (203.1 mm)
 Front Camera | 5.0 MP
 Rear Camera | 8.0 MP
 Release Date | September 2017
-
-## Device Picture
-
-![Galaxy Tab A 8.0" (2017)](https://images.samsung.com/is/image/samsung/ca-galaxy-tab-a-t380-sm-t380nzkexac-frontblack-thumb-108557227?$480_480_PNG$)
