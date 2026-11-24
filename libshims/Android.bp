@@ -18,3 +18,18 @@ cc_library_shared {
     srcs: ["camera/CameraParameters.cpp"],
     vendor: true,
 }
+
+cc_library_shared {
+    name: "libshim_ril",
+    srcs: ["ril/Unicode.cpp"],
+    vendor: true,
+    compile_multilib: "32",
+    shared_libs: [
+        "libutils",
+    ],
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+    ],
+}

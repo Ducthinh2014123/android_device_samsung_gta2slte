@@ -1,0 +1,11 @@
+cc_prebuilt_library_shared {
+    name: "libbtnv",
+    owner: "samsung",
+    srcs: ["libbtnv.so"],
+    compile_multilib: "64",
+    strip: {
+        none: true,
+    },
+    check_elf_files: false,
+    soc_specific: true,
+}

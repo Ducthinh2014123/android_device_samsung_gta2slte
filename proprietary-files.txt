@@ -852,3 +852,10 @@ vendor/lib/libvndsecril-client.so
 -vendor/lib/vendor.samsung.hardware.radio.configsvc@1.0_vendor.so
 -vendor/lib/vendor.samsung.hardware.radio.secbridge@1.0_vendor.so
 -vendor/lib/vendor.samsung.hardware.radio.sechook@1.0_vendor.so
+vendor/lib/libconfigdb.so
+vendor/lib/liblqe.so
+vendor/lib/libdsi_netctrl.so
+vendor/lib/libnetmgr.so
+vendor/lib/libxml.so
+vendor/lib/libprotobuf-cpp-full-samsung.so
+vendor/etc/data/netmgr_config.xml
