@@ -1,0 +1,3 @@
+
+# Required by device services during an enforcing boot.
+allow system_app sysfs_mdnie_writable:dir search;

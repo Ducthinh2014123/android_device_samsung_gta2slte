@@ -1,0 +1,19 @@
+genrule {
+    name: "gta2slte_rust_post_boot_object",
+    tool_files: [":gta2slte_rustc"],
+    srcs: ["main.rs", "profile.rs", ":gta2slte_rust_sysroot"],
+    out: ["rust_post_boot.o"],
+    cmd: "$(location :gta2slte_rustc) --target aarch64-linux-android " +
+        "--edition=2018 --crate-name gta2slte_rust_post_boot --crate-type lib " +
+        "--emit=obj -O -C panic=abort -C relocation-model=pic " +
+        "$(location main.rs) -o $(out)",
+}
+
+cc_binary {
+    name: "gta2slte-rust-post-boot",
+    vendor: true,
+    compile_multilib: "64",
+    generated_sources: ["gta2slte_rust_post_boot_object"],
+    shared_libs: ["liblog"],
+    stl: "none",
+}

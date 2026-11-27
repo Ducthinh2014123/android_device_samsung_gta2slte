@@ -179,3 +179,5 @@
 
 # TimeKeep
 /(system/vendor|vendor)/bin/timekeep                               u:object_r:timekeep_exec:s0
+
+/(vendor|system/vendor)/bin/gta2slte-rust-post-boot u:object_r:gta2slte_rust_post_boot_exec:s0

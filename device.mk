@@ -319,6 +319,7 @@ PRODUCT_COPY_FILES += \
 # Sensors
 PRODUCT_PACKAGES += \
     android.hardware.sensors@1.0-impl:32 \
+    android.hardware.sensors@1.0-service \
     libsensorndkbridge
 
 # Soong
@@ -392,3 +393,9 @@ PRODUCT_PACKAGES += \
     libshim_ril
 
 PRODUCT_PROPERTY_OVERRIDES += ro.telephony.default_network=9
+
+# Game mode policy loaded by system_server.
+PRODUCT_PACKAGES += libgta2slte_game_mode
+
+# Rust initializer for the SM-T385 CPU profile.
+PRODUCT_PACKAGES += gta2slte-rust-post-boot

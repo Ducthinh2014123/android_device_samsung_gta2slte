@@ -14,3 +14,7 @@ Display | 1280 x 800, 8.0" (203.1 mm)
 Front Camera | 5.0 MP
 Rear Camera | 8.0 MP
 Release Date | September 2017
+
+## Alpha 2 source
+
+See [the Alpha 2 build inputs](patches/alpha2/README.md) for companion patches and base revisions.

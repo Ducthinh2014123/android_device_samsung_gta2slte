@@ -1,0 +1,2 @@
+type gta2slte_rust_post_boot_exec, exec_type, vendor_file_type, file_type;
+allow qti_init_shell gta2slte_rust_post_boot_exec:file { rx_file_perms execute_no_trans };

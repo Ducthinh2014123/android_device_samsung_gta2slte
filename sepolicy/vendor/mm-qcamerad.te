@@ -1,2 +1,6 @@
 allow mm-qcamerad sysfs_camera_writable:dir r_dir_perms;
 allow mm-qcamerad sysfs_camera_writable:file rw_file_perms;
+
+# Required by device services during an enforcing boot.
+allow mm-qcamerad camera_data_file:dir create_dir_perms;
+allow mm-qcamerad camera_data_file:file create_file_perms;

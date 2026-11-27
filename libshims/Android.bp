@@ -13,23 +13,62 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Android 11 Soong has no ARM32 Rust std variant. Compile this no_std
+// shim as PIC objects, then let the regular vendor linker provide the ELF ABI.
+genrule_defaults {
+    name: "gta2slte_shim_rust_defaults",
+    tool_files: [":gta2slte_rustc"],
+    srcs: [":gta2slte_rust_sysroot"],
+}
+
+genrule {
+    name: "gta2slte_camera_shim_arm",
+    defaults: ["gta2slte_shim_rust_defaults"],
+    srcs: ["camera/lib.rs"],
+    out: ["camera_shim_arm.o"],
+    cmd: "$(location :gta2slte_rustc) --target arm-linux-androideabi " +
+        "--crate-name camera_shim --crate-type lib --emit=obj -O -C panic=abort " +
+        "-C relocation-model=pic -C target-cpu=cortex-a53 $(location camera/lib.rs) -o $(out)",
+}
+
+genrule {
+    name: "gta2slte_camera_shim_arm64",
+    defaults: ["gta2slte_shim_rust_defaults"],
+    srcs: ["camera/lib.rs"],
+    out: ["camera_shim_arm64.o"],
+    cmd: "$(location :gta2slte_rustc) --target aarch64-linux-android " +
+        "--crate-name camera_shim --crate-type lib --emit=obj -O -C panic=abort " +
+        "-C relocation-model=pic $(location camera/lib.rs) -o $(out)",
+}
+
 cc_library_shared {
     name: "libcamera_shim",
-    srcs: ["camera/CameraParameters.cpp"],
     vendor: true,
+    compile_multilib: "both",
+    arch: {
+        arm: {
+            generated_sources: ["gta2slte_camera_shim_arm"],
+        },
+        arm64: {
+            generated_sources: ["gta2slte_camera_shim_arm64"],
+        },
+    },
+}
+
+genrule {
+    name: "gta2slte_ril_shim_arm",
+    defaults: ["gta2slte_shim_rust_defaults"],
+    srcs: ["ril/lib.rs"],
+    out: ["ril_shim_arm.o"],
+    cmd: "$(location :gta2slte_rustc) --target arm-linux-androideabi " +
+        "--crate-name ril_shim --crate-type lib --emit=obj -O -C panic=abort " +
+        "-C relocation-model=pic -C target-cpu=cortex-a53 $(location ril/lib.rs) -o $(out)",
 }
 
 cc_library_shared {
     name: "libshim_ril",
-    srcs: ["ril/Unicode.cpp"],
+    generated_sources: ["gta2slte_ril_shim_arm"],
     vendor: true,
     compile_multilib: "32",
-    shared_libs: [
-        "libutils",
-    ],
-    cflags: [
-        "-Wall",
-        "-Wextra",
-        "-Werror",
-    ],
+    shared_libs: ["libutils"],
 }

@@ -13,3 +13,6 @@ allow hal_audio_default vendor_audiopcm_data_file:dir create_dir_perms;
 allow hal_audio_default vendor_audiopcm_data_file:file create_file_perms;
 
 allow hal_audio_default vendor_log_file:dir r_dir_perms;
+
+# Access observed on gta2slte under SELinux auditing.
+allow hal_audio_default sysfs_batteryinfo:dir search;

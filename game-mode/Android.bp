@@ -1,0 +1,16 @@
+genrule {
+    name: "gta2slte_game_mode_rust_arm64",
+    tool_files: [":gta2slte_rustc"],
+    srcs: ["lib.rs", ":gta2slte_rust_sysroot"],
+    out: ["game_mode_rust.o"],
+    cmd: "$(location :gta2slte_rustc) --target aarch64-linux-android " +
+        "--edition=2018 --crate-name gta2slte_game_mode --crate-type lib --emit=obj -O -C panic=abort " +
+        "-C relocation-model=pic $(location lib.rs) -o $(out)",
+}
+
+cc_library_shared {
+    name: "libgta2slte_game_mode",
+    compile_multilib: "64",
+    generated_sources: ["gta2slte_game_mode_rust_arm64"],
+    stl: "none",
+}

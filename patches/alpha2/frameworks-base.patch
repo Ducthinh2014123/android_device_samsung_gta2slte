@@ -1,0 +1,501 @@
+diff --git a/packages/SystemUI/src/com/android/systemui/SystemUIService.java b/packages/SystemUI/src/com/android/systemui/SystemUIService.java
+index c56bab29..1f3066b9 100644
+--- a/packages/SystemUI/src/com/android/systemui/SystemUIService.java
++++ b/packages/SystemUI/src/com/android/systemui/SystemUIService.java
+@@ -42,6 +42,7 @@ import javax.inject.Inject;
+ public class SystemUIService extends Service {
+ 
+     private final Handler mMainHandler;
++    private GameModeBanner mGameModeBanner;
+     private final DumpHandler mDumpHandler;
+     private final BroadcastDispatcher mBroadcastDispatcher;
+     private final LogBufferFreezer mLogBufferFreezer;
+@@ -69,6 +70,11 @@ public class SystemUIService extends Service {
+         // Start all of SystemUI
+         ((SystemUIApplication) getApplication()).startServicesIfNeeded();
+ 
++        if ("gta2slte".equals(Build.DEVICE)) {
++            mGameModeBanner = new GameModeBanner(this, mMainHandler);
++            mGameModeBanner.start();
++        }
++
+         // Finish initializing dump logic
+         mLogBufferFreezer.attach(mBroadcastDispatcher);
+ 
+@@ -103,6 +109,14 @@ public class SystemUIService extends Service {
+                 UserHandle.SYSTEM);
+     }
+ 
++    @Override
++    public void onDestroy() {
++        if (mGameModeBanner != null) {
++            mGameModeBanner.stop();
++        }
++        super.onDestroy();
++    }
++
+     @Override
+     public IBinder onBind(Intent intent) {
+         return null;
+diff --git a/services/core/java/com/android/server/am/CachedAppOptimizer.java b/services/core/java/com/android/server/am/CachedAppOptimizer.java
+index 2f776fc5..39e9b29c 100644
+--- a/services/core/java/com/android/server/am/CachedAppOptimizer.java
++++ b/services/core/java/com/android/server/am/CachedAppOptimizer.java
+@@ -438,7 +438,13 @@ public final class CachedAppOptimizer {
+         mUseCompaction = DeviceConfig.getBoolean(DeviceConfig.NAMESPACE_ACTIVITY_MANAGER,
+                     KEY_USE_COMPACTION, DEFAULT_USE_COMPACTION);
+ 
+-        if (mUseCompaction && mCompactionHandler == null) {
++        if (mUseCompaction || OomAdjuster.GAME_MODE_SUPPORTED) {
++            ensureCompactionHandler();
++        }
++    }
++
++    private void ensureCompactionHandler() {
++        if (mCompactionHandler == null) {
+             if (!mCachedAppOptimizerThread.isAlive()) {
+                 mCachedAppOptimizerThread.start();
+             }
+diff --git a/services/core/java/com/android/server/am/OomAdjuster.java b/services/core/java/com/android/server/am/OomAdjuster.java
+index faa7dce3..b47b37a5 100644
+--- a/services/core/java/com/android/server/am/OomAdjuster.java
++++ b/services/core/java/com/android/server/am/OomAdjuster.java
+@@ -81,7 +81,9 @@ import android.content.ComponentName;
+ import android.content.Context;
+ import android.content.Intent;
+ import android.content.IntentFilter;
++import android.content.pm.ApplicationInfo;
+ import android.content.pm.ServiceInfo;
++import android.os.Build;
+ import android.os.Debug;
+ import android.os.Handler;
+ import android.os.IBinder;
+@@ -165,6 +167,19 @@ public final class OomAdjuster {
+      */
+     CachedAppOptimizer mCachedAppOptimizer;
+ 
++    static final boolean GAME_MODE_SUPPORTED = "gta2slte".equals(Build.DEVICE);
++    private static final String ACTION_GAME_MODE_CHANGED =
++            "com.android.internal.intent.action.GAME_MODE_CHANGED";
++    private static final long GAME_MODE_RECLAIM_DELAY_MS = 1500;
++    private static final long GAME_MODE_RECLAIM_COOLDOWN_MS = 30000;
++
++    @GuardedBy("mService")
++    private ProcessRecord mGameModeTopApp;
++    @GuardedBy("mService")
++    private Runnable mGameModeReclaim;
++    @GuardedBy("mService")
++    private long mLastGameModeReclaim;
++
+     ActivityManagerConstants mConstants;
+ 
+     final long[] mTmpLong = new long[3];
+@@ -644,6 +659,9 @@ public final class OomAdjuster {
+         mNumCachedHiddenProcs = 0;
+ 
+         boolean allChanged = updateAndTrimProcessLocked(now, nowElapsed, oldTime, activeUids);
++        if (GAME_MODE_SUPPORTED && fullUpdate && mService.mBooted) {
++            updateGameModeLocked(topApp);
++        }
+         mNumServiceProcs = mNewNumServiceProcs;
+ 
+         if (mService.mAlwaysFinishActivities) {
+@@ -910,6 +928,80 @@ public final class OomAdjuster {
+         return mService.updateLowMemStateLocked(numCached, numEmpty, numTrimming);
+     }
+ 
++    @GuardedBy("mService")
++    private void updateGameModeLocked(ProcessRecord topApp) {
++        final boolean isGame = topApp != null
++                && mService.mWakefulness == PowerManagerInternal.WAKEFULNESS_AWAKE
++                && topApp.getCurProcState() == PROCESS_STATE_TOP
++                && (topApp.info.category == ApplicationInfo.CATEGORY_GAME
++                        || (topApp.info.flags & ApplicationInfo.FLAG_IS_GAME) != 0
++                        // Some Minecraft builds do not declare a game category.
++                        || "com.mojang.minecraftpe".equals(topApp.info.packageName));
++        final ProcessRecord game = isGame ? topApp : null;
++        if (mGameModeTopApp == game) {
++            return;
++        }
++        mGameModeTopApp = game;
++        final Intent banner = new Intent(ACTION_GAME_MODE_CHANGED)
++                .setPackage("com.android.systemui")
++                .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY);
++        if (game != null) {
++            banner.putExtra(Intent.EXTRA_PACKAGE_NAME, game.info.packageName);
++            banner.putExtra(Intent.EXTRA_USER_HANDLE, UserHandle.getUserId(game.uid));
++        }
++        mService.mHandler.post(() -> mService.mContext.sendBroadcastAsUser(
++                banner, UserHandle.SYSTEM, android.Manifest.permission.STATUS_BAR_SERVICE));
++        if (mGameModeReclaim != null) {
++            mService.mHandler.removeCallbacks(mGameModeReclaim);
++            mGameModeReclaim = null;
++        }
++        if (game == null) {
++            Slog.i(TAG_OOM_ADJ, "Game mode ended");
++            return;
++        }
++
++        Slog.i(TAG_OOM_ADJ, "Game mode started for " + game.info.packageName);
++        mGameModeReclaim = () -> {
++            // Read memory outside the ActivityManager lock, after the game has started.
++            final int budget = GameModePolicy.reclaimBudget();
++            synchronized (mService) {
++                final long now = SystemClock.uptimeMillis();
++                if (budget <= 0 || mGameModeTopApp != game || mService.getTopAppLocked() != game
++                        || mService.mWakefulness != PowerManagerInternal.WAKEFULNESS_AWAKE
++                        || (mLastGameModeReclaim != 0
++                            && now - mLastGameModeReclaim < GAME_MODE_RECLAIM_COOLDOWN_MS)) {
++                    return;
++                }
++                if (reclaimCachedAppsForGameLocked(game, budget) > 0) {
++                    mLastGameModeReclaim = now;
++                }
++            }
++        };
++        mService.mHandler.postDelayed(mGameModeReclaim, GAME_MODE_RECLAIM_DELAY_MS);
++    }
++
++    @GuardedBy("mService")
++    private int reclaimCachedAppsForGameLocked(ProcessRecord game, int budget) {
++        int queued = 0;
++        // LRU order puts the least recently used processes first. The optimizer
++        // checks that the process is still background before reclaiming pages.
++        for (int i = 0; i < mProcessList.mLruProcesses.size()
++                && queued < budget; i++) {
++            final ProcessRecord app = mProcessList.mLruProcesses.get(i);
++            if (app.pid <= 0 || app.killedByAm || app.thread == null
++                    || app.uid == game.uid || !UserHandle.isApp(app.uid)
++                    || app.info.isSystemApp() || app.info.isUpdatedSystemApp()
++                    || app.shouldNotFreeze || app.setAdj < ProcessList.CACHED_APP_MIN_ADJ
++                    || app.setAdj > ProcessList.CACHED_APP_MAX_ADJ) {
++                continue;
++            }
++            mCachedAppOptimizer.compactAppSome(app);
++            queued++;
++        }
++        Slog.i(TAG_OOM_ADJ, "Game mode queued reclaim for " + queued + " cached processes");
++        return queued;
++    }
++
+     private void updateAppUidRecLocked(ProcessRecord app) {
+         final UidRecord uidRec = app.uidRecord;
+         if (uidRec != null) {
+diff --git a/packages/SystemUI/res/values-vi/gta2slte_game_mode.xml b/packages/SystemUI/res/values-vi/gta2slte_game_mode.xml
+new file mode 100644
+index 00000000..eb51a28c
+--- /dev/null
++++ b/packages/SystemUI/res/values-vi/gta2slte_game_mode.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="gta2slte_game_mode_on">Đã bật chế độ chơi game</string>
++</resources>
+diff --git a/packages/SystemUI/res/values/gta2slte_game_mode.xml b/packages/SystemUI/res/values/gta2slte_game_mode.xml
+new file mode 100644
+index 00000000..6cf186e6
+--- /dev/null
++++ b/packages/SystemUI/res/values/gta2slte_game_mode.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="gta2slte_game_mode_on">Game mode on</string>
++</resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/GameModeBanner.java b/packages/SystemUI/src/com/android/systemui/GameModeBanner.java
+new file mode 100644
+index 00000000..f1b3a065
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/GameModeBanner.java
+@@ -0,0 +1,233 @@
++/*
++ * Copyright (C) 2010 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.systemui;
++
++import android.Manifest;
++import android.animation.ValueAnimator;
++import android.content.BroadcastReceiver;
++import android.content.Context;
++import android.content.Intent;
++import android.content.IntentFilter;
++import android.content.pm.PackageManager;
++import android.graphics.Canvas;
++import android.graphics.Color;
++import android.graphics.LinearGradient;
++import android.graphics.Paint;
++import android.graphics.PixelFormat;
++import android.graphics.RectF;
++import android.graphics.Shader;
++import android.graphics.Typeface;
++import android.os.Handler;
++import android.os.UserHandle;
++import android.text.TextPaint;
++import android.text.TextUtils;
++import android.util.Log;
++import android.view.Gravity;
++import android.view.View;
++import android.view.WindowManager;
++import android.view.animation.DecelerateInterpolator;
++
++final class GameModeBanner {
++    private static final String ACTION = "com.android.internal.intent.action.GAME_MODE_CHANGED";
++    private static final long HOLD_MS = 1550;
++
++    private final Context mContext;
++    private final Handler mHandler;
++    private final WindowManager mWindowManager;
++    private final Runnable mDismiss = this::dismiss;
++    private BannerView mView;
++
++    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
++        @Override
++        public void onReceive(Context context, Intent intent) {
++            if (!ACTION.equals(intent.getAction())) {
++                return;
++            }
++            final String packageName = intent.getStringExtra(Intent.EXTRA_PACKAGE_NAME);
++            if (packageName == null) {
++                remove();
++                return;
++            }
++            final int user = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, UserHandle.USER_SYSTEM);
++            show(getLabel(packageName, user));
++        }
++    };
++
++    GameModeBanner(Context context, Handler handler) {
++        mContext = context;
++        mHandler = handler;
++        mWindowManager = context.getSystemService(WindowManager.class);
++    }
++
++    void start() {
++        mContext.registerReceiver(mReceiver, new IntentFilter(ACTION),
++                Manifest.permission.STATUS_BAR_SERVICE, mHandler);
++    }
++
++    void stop() {
++        mContext.unregisterReceiver(mReceiver);
++        remove();
++    }
++
++    private CharSequence getLabel(String packageName, int user) {
++        try {
++            final PackageManager pm = mContext.createContextAsUser(UserHandle.of(user), 0)
++                    .getPackageManager();
++            return pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0));
++        } catch (PackageManager.NameNotFoundException e) {
++            return "";
++        }
++    }
++
++    private void show(CharSequence label) {
++        remove();
++        final BannerView banner = new BannerView(mContext, label);
++        final int width = Math.min(banner.dp(392),
++                mContext.getResources().getDisplayMetrics().widthPixels - banner.dp(24));
++        final WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
++                width, banner.dp(72), WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
++                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
++                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
++                PixelFormat.TRANSLUCENT);
++        lp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
++        lp.y = banner.dp(12);
++        lp.setTitle("SM-T385 Game Mode banner");
++
++        final boolean animate = ValueAnimator.areAnimatorsEnabled();
++        if (animate) {
++            banner.setAlpha(0f);
++            banner.setTranslationY(-banner.dp(14));
++            banner.setScaleX(.96f);
++            banner.setScaleY(.96f);
++        }
++        try {
++            mWindowManager.addView(banner, lp);
++        } catch (WindowManager.BadTokenException | WindowManager.InvalidDisplayException e) {
++            Log.w("GameModeBanner", "Unable to show game mode banner", e);
++            return;
++        }
++        mView = banner;
++        if (animate) {
++            banner.animate().alpha(1f).translationY(0f).scaleX(1f).scaleY(1f)
++                    .setDuration(260).setInterpolator(new DecelerateInterpolator()).start();
++        }
++        mHandler.postDelayed(mDismiss, HOLD_MS);
++    }
++
++    private void dismiss() {
++        final BannerView banner = mView;
++        if (banner == null || !ValueAnimator.areAnimatorsEnabled()) {
++            remove();
++            return;
++        }
++        banner.animate().alpha(0f).translationY(-banner.dp(10)).setDuration(180)
++                .withEndAction(() -> {
++                    if (mView == banner) {
++                        remove();
++                    }
++                }).start();
++    }
++
++    private void remove() {
++        mHandler.removeCallbacks(mDismiss);
++        final BannerView banner = mView;
++        mView = null;
++        if (banner != null) {
++            banner.animate().cancel();
++            mWindowManager.removeViewImmediate(banner);
++        }
++    }
++
++    private static final class BannerView extends View {
++        private static final int CYAN = 0xff58eeff;
++        private static final int VIOLET = 0xffa395ff;
++        private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
++        private final TextPaint mTitlePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
++        private final TextPaint mLabelPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
++        private final RectF mPanel = new RectF();
++        private final CharSequence mTitle;
++        private final CharSequence mLabel;
++        private final float mDensity;
++        private CharSequence mVisibleTitle;
++        private CharSequence mVisibleLabel;
++        private Shader mBorder;
++
++        BannerView(Context context, CharSequence label) {
++            super(context);
++            mDensity = getResources().getDisplayMetrics().density;
++            mTitle = context.getText(R.string.gta2slte_game_mode_on);
++            mLabel = label;
++            mTitlePaint.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
++            mTitlePaint.setTextSize(dp(17));
++            mTitlePaint.setColor(Color.WHITE);
++            mLabelPaint.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
++            mLabelPaint.setTextSize(dp(13));
++            mLabelPaint.setColor(0xffb5c9e6);
++            setContentDescription(TextUtils.isEmpty(label) ? mTitle : mTitle + ", " + label);
++        }
++
++        int dp(float value) {
++            return Math.round(mDensity * value);
++        }
++
++        @Override
++        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
++            mPanel.set(dp(2), dp(2), w - dp(2), h - dp(2));
++            mBorder = new LinearGradient(0, 0, w, h, CYAN, VIOLET, Shader.TileMode.CLAMP);
++            final int textWidth = Math.max(0, w - dp(94));
++            mVisibleTitle = TextUtils.ellipsize(mTitle, mTitlePaint, textWidth,
++                    TextUtils.TruncateAt.END);
++            mVisibleLabel = TextUtils.ellipsize(mLabel, mLabelPaint, textWidth,
++                    TextUtils.TruncateAt.END);
++        }
++
++        @Override
++        protected void onDraw(Canvas canvas) {
++            super.onDraw(canvas);
++            mPaint.setStyle(Paint.Style.FILL);
++            mPaint.setColor(0xf5161e35);
++            canvas.drawRoundRect(mPanel, dp(16), dp(16), mPaint);
++
++            mPaint.setStyle(Paint.Style.STROKE);
++            mPaint.setStrokeWidth(dp(1.5f));
++            mPaint.setShader(mBorder);
++            canvas.drawRoundRect(mPanel, dp(16), dp(16), mPaint);
++            mPaint.setShader(null);
++            mPaint.setStyle(Paint.Style.FILL);
++            mPaint.setColor(0xff253953);
++            canvas.drawCircle(dp(35), dp(36), dp(22), mPaint);
++
++            mPaint.setStyle(Paint.Style.STROKE);
++            mPaint.setColor(CYAN);
++            mPaint.setStrokeWidth(dp(2));
++            mPaint.setStrokeCap(Paint.Cap.ROUND);
++            canvas.drawRoundRect(dp(22), dp(28), dp(48), dp(44), dp(7), dp(7), mPaint);
++            canvas.drawLine(dp(28), dp(36), dp(34), dp(36), mPaint);
++            canvas.drawLine(dp(31), dp(33), dp(31), dp(39), mPaint);
++            canvas.drawPoint(dp(40), dp(35), mPaint);
++            canvas.drawPoint(dp(44), dp(38), mPaint);
++            mPaint.setStyle(Paint.Style.FILL);
++
++            canvas.drawText(mVisibleTitle, 0, mVisibleTitle.length(), dp(67),
++                    dp(TextUtils.isEmpty(mVisibleLabel) ? 42 : 32), mTitlePaint);
++            if (!TextUtils.isEmpty(mVisibleLabel)) {
++                canvas.drawText(mVisibleLabel, 0, mVisibleLabel.length(), dp(67), dp(51),
++                        mLabelPaint);
++            }
++        }
++    }
++}
+diff --git a/services/core/java/com/android/server/am/GameModePolicy.java b/services/core/java/com/android/server/am/GameModePolicy.java
+new file mode 100644
+index 00000000..d00a8252
+--- /dev/null
++++ b/services/core/java/com/android/server/am/GameModePolicy.java
+@@ -0,0 +1,53 @@
++/*
++ * Copyright (C) 2026 The LineageOS Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.android.server.am;
++
++import android.os.Process;
++import android.util.Slog;
++
++final class GameModePolicy {
++    private static final boolean NATIVE_AVAILABLE = loadNativePolicy();
++
++    private GameModePolicy() {}
++
++    private static boolean loadNativePolicy() {
++        try {
++            System.loadLibrary("gta2slte_game_mode");
++            return true;
++        } catch (LinkageError e) {
++            Slog.w("GameModePolicy", "Rust policy unavailable", e);
++            return false;
++        }
++    }
++
++    static int reclaimBudget() {
++        if (!NATIVE_AVAILABLE) {
++            return 0;
++        }
++        final long[] memory = {-1, -1};
++        Process.readProcLines("/proc/meminfo", new String[]{"MemAvailable:", "MemTotal:"},
++                memory);
++        try {
++            return nativeReclaimBudget(memory[0], memory[1],
++                    Runtime.getRuntime().availableProcessors());
++        } catch (LinkageError e) {
++            Slog.w("GameModePolicy", "Cannot invoke Rust policy", e);
++            return 0;
++        }
++    }
++
++    private static native int nativeReclaimBudget(long availableKib, long totalKib, int cpus);
++}

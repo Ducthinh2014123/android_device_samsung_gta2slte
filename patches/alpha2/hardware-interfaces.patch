@@ -1,0 +1,38 @@
+diff --git a/audio/core/all-versions/default/DevicesFactory.cpp b/audio/core/all-versions/default/DevicesFactory.cpp
+index 729f18c..145c119 100644
+--- a/audio/core/all-versions/default/DevicesFactory.cpp
++++ b/audio/core/all-versions/default/DevicesFactory.cpp
+@@ -36,7 +36,7 @@ Return<void> DevicesFactory::openDevice(IDevicesFactory::Device device, openDevi
+         case IDevicesFactory::Device::PRIMARY:
+             return openDevice<PrimaryDevice>(AUDIO_HARDWARE_MODULE_ID_PRIMARY, _hidl_cb);
+         case IDevicesFactory::Device::A2DP:
+-            return openDevice(AUDIO_HARDWARE_MODULE_ID_A2DP, _hidl_cb);
++            return openDevice("bluetooth", _hidl_cb);
+         case IDevicesFactory::Device::USB:
+             return openDevice(AUDIO_HARDWARE_MODULE_ID_USB, _hidl_cb);
+         case IDevicesFactory::Device::R_SUBMIX:
+diff --git a/sensors/1.0/default/Android.bp b/sensors/1.0/default/Android.bp
+index d5c1b23..1f5c367 100644
+--- a/sensors/1.0/default/Android.bp
++++ b/sensors/1.0/default/Android.bp
+@@ -43,6 +43,8 @@ cc_library_static {
+ 
+ cc_binary {
+     name: "android.hardware.sensors@1.0-service",
++    // gta2slte uses the proprietary ARM32 K2HH HAL in a binderized process.
++    compile_multilib: "32",
+     relative_install_path: "hw",
+     vendor: true,
+     init_rc: ["android.hardware.sensors@1.0-service.rc"],
+diff --git a/sensors/1.0/default/android.hardware.sensors@1.0-service.rc b/sensors/1.0/default/android.hardware.sensors@1.0-service.rc
+index 1af6d0b..e1d6ba5 100644
+--- a/sensors/1.0/default/android.hardware.sensors@1.0-service.rc
++++ b/sensors/1.0/default/android.hardware.sensors@1.0-service.rc
+@@ -2,6 +2,6 @@ service vendor.sensors-hal-1-0 /vendor/bin/hw/android.hardware.sensors@1.0-servi
+     interface android.hardware.sensors@1.0::ISensors default
+     class hal
+     user system
+-    group system wakelock uhid context_hub
++    group system input wakelock uhid context_hub
+     capabilities BLOCK_SUSPEND
+     rlimit rtprio 10 10

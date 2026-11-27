@@ -234,6 +234,8 @@ service thermal-engine /system/vendor/bin/thermal-engine
    socket thermal-recv-passive-client stream 0666 system system
    socket thermal-send-rule stream 0660 system system
    group root
+   # Avoid repeated starts when the old vendor helper cannot load.
+   oneshot
 
 on boot
     start rmt_storage

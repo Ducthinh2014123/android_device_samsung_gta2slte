@@ -852,10 +852,12 @@ service vendor.qdmastatsd /system/vendor/bin/qdmastatsd
     user system
     group readproc system net_bw_stats radio vendor_rfs_shared
 
+# The legacy launcher may fail on ARM64 vendor builds. GNSS has its own HAL.
 service loc_launcher /system/vendor/bin/loc_launcher
     class late_start
     user gps
     group gps
+    oneshot
 
 on property:crypto.driver.load=1
      insmod /system/lib/modules/qce.ko
@@ -900,6 +902,7 @@ service qcom-post-boot /vendor/bin/init.qcom.post_boot.sh
 #    seclabel u:r:qti-testscripts:s0
 
 on property:sys.boot_completed=1
+    swapon_all /vendor/etc/fstab.qcom
     start qcom-post-boot
 #     do not run the script for treble-based model
 #    start qti-testscripts

@@ -59,3 +59,6 @@ genfscon sysfs /devices/soc/1de0000.qcom,venus/subsys0/restart_level	u:object_r:
 genfscon sysfs /devices/soc/c200000.qcom,lpass/subsys1/restart_level	u:object_r:sysfs_ssr_toggle:s0
 genfscon sysfs /devices/soc/a21b000.qcom,pronto/subsys2/restart_level	u:object_r:sysfs_ssr_toggle:s0
 genfscon sysfs /devices/soc/4080000.qcom,mss/subsys3/restart_level	    u:object_r:sysfs_ssr_toggle:s0
+
+# Samsung discrete accelerometer and grip sensor nodes.
+genfscon sysfs /devices/virtual/sensors u:object_r:sysfs_sensors:s0

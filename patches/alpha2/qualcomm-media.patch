@@ -1,0 +1,23 @@
+diff --git a/mm-video-v4l2/vidc/vdec/src/omx_vdec_v4l2.cpp b/mm-video-v4l2/vidc/vdec/src/omx_vdec_v4l2.cpp
+index edc9da9..74ea587 100644
+--- a/mm-video-v4l2/vidc/vdec/src/omx_vdec_v4l2.cpp
++++ b/mm-video-v4l2/vidc/vdec/src/omx_vdec_v4l2.cpp
+@@ -1064,6 +1064,18 @@ OMX_ERRORTYPE omx_vdec::set_dpb(bool is_split_mode, int dpb_color_format)
+ 
+ OMX_ERRORTYPE omx_vdec::decide_dpb_buffer_mode(bool split_opb_dpb_with_same_color_fmt)
+ {
++    // The gta2slte Venus firmware uses combined linear buffers by default.
++    // It rejects the optional multi-stream controls used by newer firmware.
++    char device[PROPERTY_VALUE_MAX];
++    property_get("ro.product.device", device, "");
++    if (!strcmp(device, "gta2slte") && !secure_mode &&
++        eCompressionFormat == OMX_VIDEO_CodingAVC &&
++        dpb_bit_depth == MSM_VIDC_BIT_DEPTH_8 &&
++        capture_capability == V4L2_PIX_FMT_NV12 &&
++        !split_opb_dpb_with_same_color_fmt) {
++        return OMX_ErrorNone;
++    }
++
+     OMX_ERRORTYPE eRet = OMX_ErrorNone;
+     struct v4l2_format fmt;
+     int rc = 0;

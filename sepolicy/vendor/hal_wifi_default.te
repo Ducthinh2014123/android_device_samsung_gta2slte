@@ -1,0 +1,3 @@
+
+# Access observed on gta2slte under SELinux auditing.
+allow hal_wifi_default vendor_convergence_data_file:dir search;

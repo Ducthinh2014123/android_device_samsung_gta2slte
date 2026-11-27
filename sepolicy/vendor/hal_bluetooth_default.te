@@ -1,0 +1,6 @@
+
+# Access observed on gta2slte under SELinux auditing.
+r_dir_file(hal_bluetooth_default, persist_bluetooth_file)
+
+# Required by device services during an enforcing boot.
+allow hal_bluetooth_default mnt_vendor_file:dir search;

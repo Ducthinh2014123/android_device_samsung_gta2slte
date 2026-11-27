@@ -1,0 +1,23 @@
+diff --git a/linux-x86/Android.bp b/linux-x86/Android.bp
+index fe7becf..8d3807b 100644
+--- a/linux-x86/Android.bp
++++ b/linux-x86/Android.bp
+@@ -404,3 +404,18 @@ rust_library_rlib {
+     no_stdlibs: true,
+     edition: "2018",
+ }
++
++// Tool inputs for the no_std gta2slte shim object rules.
++filegroup {
++    name: "gta2slte_rustc",
++    srcs: ["1.40.0/bin/rustc"],
++}
++
++filegroup {
++    name: "gta2slte_rust_sysroot",
++    srcs: [
++        "1.40.0/lib/*.so*",
++        "1.40.0/lib/rustlib/arm-linux-androideabi/lib/*.rlib",
++        "1.40.0/lib/rustlib/aarch64-linux-android/lib/*.rlib",
++    ],
++}

@@ -6,3 +6,7 @@ allowxperm rild tun_device:chr_file ioctl { TUNSETIFF TUNSETPERSIST };
 allow rild proc_net:file write;
 
 get_prop(rild, csc_prop)
+
+# Access observed on gta2slte under SELinux auditing.
+r_dir_file(rild, app_efs_file)
+r_dir_file(rild, imei_efs_file)
